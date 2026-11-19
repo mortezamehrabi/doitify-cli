@@ -10,6 +10,20 @@ const end = "<!-- doitify:end -->";
 const block = `${begin}\n## Doitify\n\n@DOITIFY.md\n\nFor Doitify work, read DOITIFY.md alongside existing project rules.\n${end}\n`;
 const hash = (data) => createHash("sha256").update(data).digest("hex");
 const maxFileBytes = 1024 * 1024;
+const statePath = ".doitify/install-state.json";
+const packageVersion = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
+// Add future agent/user-owned paths here. A trailing slash protects the whole tree.
+const userDataDirectories = [
+  ".doitify/project-knowledge/",
+  ".doitify/follow-ups/",
+  ".doitify/plans/",
+  ".doitify/reports/",
+  ".doitify/agent-scripts/",
+];
+const userDataPaths = [".doitify/project.md", ...userDataDirectories];
+const isUserData = (relative) => userDataPaths.some((entry) =>
+  entry.endsWith("/") ? relative.startsWith(entry) : relative === entry);
+const writableActions = new Set(["create", "append", "update"]);
 
 async function statOrNull(file) {
   try {
@@ -50,7 +64,7 @@ function validBundlePath(relative) {
       relative.split("/").some((part) => !part || part === "." || part === "..")) return false;
   return relative === "DOITIFY.md" ||
     relative === ".doitify/project.md" || relative === ".doitify/connection.md" ||
-    relative === ".doitify/project-knowledge/README.md" ||
+    userDataDirectories.some((directory) => relative === `${directory}README.md`) ||
     /^\.doitify\/(policies|skills|templates|workflows)\/[\w./-]+\.md$/.test(relative);
 }
 
@@ -98,28 +112,64 @@ function hostContent(name, previous) {
   return Buffer.concat([previous.content, Buffer.from(separator + block.replaceAll("\n", newline))]);
 }
 
-export async function planInit({ target = process.cwd(), bundleDirectory = defaultBundle } = {}) {
+async function loadState(target) {
+  const previous = await existingFile(path.join(target, statePath));
+  if (!previous) return { previous, hashes: {} };
+  let state;
+  try {
+    state = JSON.parse(previous.content.toString("utf8"));
+  } catch {
+    throw new Error(`Invalid ${statePath}; restore it from backup before updating.`);
+  }
+  if (state?.schemaVersion !== 1 || typeof state.packageVersion !== "string" ||
+      !state.managedFiles || typeof state.managedFiles !== "object" ||
+      Array.isArray(state.managedFiles) ||
+      Object.keys(state.managedFiles).length > 200 ||
+      Object.entries(state.managedFiles).some(([relative, digest]) =>
+        !validBundlePath(relative) || typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest))) {
+    throw new Error(`Invalid ${statePath}; restore it from backup before updating.`);
+  }
+  // Protection wins even if an older installer used to manage this path.
+  const hashes = Object.fromEntries(Object.entries(state.managedFiles).filter(([relative]) => !isUserData(relative)));
+  return { previous, hashes };
+}
+
+async function planWorkspace({ target = process.cwd(), bundleDirectory = defaultBundle } = {}, update = false) {
   target = await safePath(target);
   const targetStat = await statOrNull(target);
   if (targetStat && !targetStat.isDirectory()) throw new Error(`Target is not a directory: ${target}`);
   const files = await loadBundle(bundleDirectory);
+  const state = await loadState(target);
+  if (update && !state.previous && !await existingFile(path.join(target, "DOITIFY.md"))) {
+    throw new Error("No installed workspace found. Run doitify init first.");
+  }
   const actions = [];
   const conflicts = [];
+  // Track only this release's managed files; retired files remain untouched.
+  const hashes = {};
   for (const file of files) {
+    // Update never reads or recreates user data, even if a starter is missing.
+    if (update && isUserData(file.path)) {
+      actions.push({ action: "preserve", path: file.path });
+      continue;
+    }
     const destination = path.join(target, file.path);
     const previous = await existingFile(destination);
     let action = "create";
     if (previous) {
       if (previous.content.equals(file.content)) action = "unchanged";
-      else if (file.path === ".doitify/project.md") action = "preserve";
+      else if (isUserData(file.path)) action = "preserve";
+      else if (update && Object.hasOwn(state.hashes, file.path) &&
+          hash(previous.content) === state.hashes[file.path]) action = "update";
       else {
         action = "conflict";
         conflicts.push(file.path);
       }
     }
+    if (!isUserData(file.path) && action !== "conflict") hashes[file.path] = hash(file.content);
     actions.push({ action, path: file.path, destination, content: file.content, previous });
   }
-  for (const name of hostFiles) {
+  for (const name of update ? [] : hostFiles) {
     const destination = path.join(target, name);
     const previous = await existingFile(destination);
     const content = hostContent(name, previous);
@@ -129,10 +179,26 @@ export async function planInit({ target = process.cwd(), bundleDirectory = defau
     });
   }
   if (conflicts.length) {
-    throw new Error(`Existing files differ from this workspace; nothing was written:\n${conflicts.join("\n")}\nResolve manually. No --force overwrite is available.`);
+    throw new Error(`Existing files differ from this workspace; nothing was written:\n${conflicts.join("\n")}\n${
+      update
+        ? "These files are locally modified or have no verified installation baseline. Back up and merge manually using a fresh init in a separate temporary folder."
+        : "Use doitify update for an installed workspace, or resolve manually."
+    }\nNo --force overwrite is available.`);
   }
+  const content = Buffer.from(`${JSON.stringify({
+    schemaVersion: 1,
+    packageVersion,
+    managedFiles: Object.fromEntries(Object.entries(hashes).sort(([a], [b]) => a.localeCompare(b, "en"))),
+  }, null, 2)}\n`);
+  actions.push({
+    action: !state.previous ? "create" : state.previous.content.equals(content) ? "unchanged" : "update",
+    path: statePath, destination: path.join(target, statePath), content, previous: state.previous,
+  });
   return { target, actions };
 }
+
+export const planInit = (options = {}) => planWorkspace(options);
+export const planUpdate = (options = {}) => planWorkspace(options, true);
 
 async function writeAction(action) {
   const { destination, content, previous } = action;
@@ -149,7 +215,7 @@ async function writeAction(action) {
   }
   const current = await existingFile(destination);
   if (!current || !current.content.equals(previous.content)) {
-    throw new Error(`File changed during initialization: ${destination}; rerun after reviewing.`);
+    throw new Error(`File changed during installation: ${destination}; rerun after reviewing.`);
   }
   const temporary = `${destination}.doitify-${randomUUID()}.tmp`;
   let handle;
@@ -161,7 +227,7 @@ async function writeAction(action) {
     handle = null;
     const latest = await existingFile(destination);
     if (!latest || !latest.content.equals(previous.content)) {
-      throw new Error(`File changed during initialization: ${destination}; review before retrying.`);
+      throw new Error(`File changed during installation: ${destination}; review before retrying.`);
     }
     // Atomic replacement per host file, not a transaction across the installation.
     await rename(temporary, destination);
@@ -173,12 +239,11 @@ async function writeAction(action) {
   }
 }
 
-export async function initWorkspace(options = {}) {
-  const plan = await planInit(options);
+async function applyPlan(plan, options) {
   if (!options.dryRun) {
     // Recheck planned effects before the first write.
     for (const action of plan.actions) {
-      if (!["create", "append"].includes(action.action)) continue;
+      if (!writableActions.has(action.action)) continue;
       const current = await existingFile(action.destination);
       if ((action.previous === null) !== (current === null) ||
           (current && !current.content.equals(action.previous.content))) {
@@ -186,7 +251,7 @@ export async function initWorkspace(options = {}) {
       }
     }
     for (const action of plan.actions) {
-      if (["create", "append"].includes(action.action)) await writeAction(action);
+      if (writableActions.has(action.action)) await writeAction(action);
     }
   }
   return {
@@ -195,3 +260,6 @@ export async function initWorkspace(options = {}) {
     actions: plan.actions.map(({ action, path: relative }) => ({ action, path: relative })),
   };
 }
+
+export const initWorkspace = async (options = {}) => applyPlan(await planInit(options), options);
+export const updateWorkspace = async (options = {}) => applyPlan(await planUpdate(options), options);

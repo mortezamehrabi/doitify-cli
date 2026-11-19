@@ -41,6 +41,14 @@ Local understanding, preferences, decisions and lessons grow in
 access and refresh relevant live context rather than asking you to select again.
 The npm package includes only the public knowledge starter, not learned notes.
 
+The agent submits evidence-based individual work reports after meaningful progress
+and before session end, once or multiple times per day without duplicate work/time.
+Relevant Task/subtask/Board/direct-chat collaboration is routine mission work.
+It records exact destinations and outstanding replies in `.doitify/follow-ups/`
+and returns to check them; a stopped client needs resuming unless an actual
+supported scheduler/runner is verified. OS cron changes need explicit authorization.
+Local plans, report evidence and helper scripts have their own protected folders.
+
 Once authorized, the agent can use existing MCP tools to find assigned tasks,
 perform work, update progress, ask questions, document results and hand off for
 review. Available actions depend on your deployment, client and account permissions.
@@ -64,6 +72,9 @@ Only the skill needed for the current task is loaded.
 
 - Existing `AGENTS.md`, `CLAUDE.md` and `README.md` content is preserved.
 - Customized `.doitify/project.md` settings are preserved.
+- All of `.doitify/project-knowledge/`, including its customized README, is preserved.
+- Entire `.doitify/follow-ups/`, `plans/`, `reports/` and `agent-scripts/` trees are
+  also user-owned; only their public README starters are distributed.
 - Running `init` again does not duplicate references.
 - Conflicting workspace files stop installation before writes; no `--force`.
 - The installer does not read credentials, configure MCP, make network requests
@@ -80,6 +91,9 @@ transaction: an I/O failure can leave a partial install that needs inspection.
 | `doitify init` | Initialize the current folder |
 | `doitify init --dry-run` | Preview without writing |
 | `doitify init --target "/path/to/project"` | Initialize a different folder |
+| `doitify update` | Safely update installed instructions |
+| `doitify update --dry-run` | Preview an instruction update without writes |
+| `doitify update --target "/path/to/project"` | Update a different workspace |
 | `doitify --version` | Show the installed CLI version |
 | `doitify --help` | Show usage |
 
@@ -110,15 +124,52 @@ doitify --version
 ### What about an existing workspace?
 
 **Updating the CLI does not upgrade the workspace files already in your project.**
-Currently, the CLI provides `init`, not an `update` or `upgrade` command.
-If a new bundled file differs from an existing one, `init` stops rather than
-overwriting your changes.
+Use the latest CLI's explicit update command:
 
-For now, back up or commit your project, initialize the latest version in a
-separate temporary folder, and review/merge the instruction changes manually.
-Keep your own `.doitify/project.md`, `.doitify/project-knowledge/` and host rules.
-Merge new knowledge guidance without replacing your notes. Do not delete your existing
-workspace just to bypass a conflict.
+```bash
+npx @doitify/cli@latest update --dry-run
+npx @doitify/cli@latest update
+```
+
+Or, after updating a global installation, run `doitify update`.
+Back up or commit first and review the preview.
+
+| Content | `init` | `update` |
+|---|---|---|
+| `.doitify/project.md` | Create only if missing; preserve existing settings | Never write or recreate |
+| Entire `.doitify/project-knowledge/` | Create the starter index only if missing; preserve all existing notes | Never write, traverse or recreate |
+| Entire `.doitify/follow-ups/`, `.doitify/plans/`, `.doitify/reports/`, `.doitify/agent-scripts/` | Create starter indexes only if missing; preserve existing content | Never write, traverse or recreate |
+| `DOITIFY.md`, bundled connection/policies/skills/workflows/templates | Create missing files; stop on differing existing files | Replace only when content matches the recorded installed hash |
+| Host `AGENTS.md`, `CLAUDE.md`, `README.md` | Preserve content; append missing discovery reference | Never modify |
+| Other local files/folders | Leave alone | Leave alone |
+
+The CLI records installed instruction hashes and the CLI version in
+`.doitify/install-state.json`. This is installer metadata, not an agent memory,
+identity, permission grant or task database. Do not edit it or store project
+facts there. It contains no project settings, knowledge contents or credentials.
+Keep it with the workspace so later updates can detect local modifications.
+
+An update creates new managed instruction files but never deletes retired files.
+Even a newly introduced instruction cannot replace a differing local file.
+Any conflict stops the entire plan before writes, including metadata changes;
+there is no `--force`. No automatic text merging is attempted.
+Per-file writes are atomic, but the complete installation is not a transaction.
+
+**Older/manually copied workspaces:** without an installation baseline, a
+differing file cannot safely be identified as old vendor content versus a user
+edit. Matching current files can establish a baseline; differing files stop the
+update with their paths. Back up the workspace, run the latest `init` in a
+separate temporary folder, and manually review/merge the instruction changes.
+If you retain customized managed files, future differing updates still require
+manual review. Do not delete the workspace or your knowledge to bypass a conflict.
+
+For maintainers, `userDataPaths` in `src/init.mjs` is the single protection list
+for agent-owned files and directory prefixes, with trees listed in
+`userDataDirectories`. Add future writable data locations
+there before shipping them. Protection takes precedence over an old tracked hash.
+Unknown local files are never swept or deleted.
+An update intentionally does not recreate protected folders or indexes; an agent
+can create missing local data folders when needed without replacing existing data.
 
 ## Scope and compatibility
 

@@ -7,12 +7,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundleWorkspace, canonicalWorkspace, collectWorkspace } from "../scripts/bundle-workspace.mjs";
-import { initWorkspace, planInit } from "../src/init.mjs";
+import { initWorkspace, planInit, updateWorkspace } from "../src/init.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const binary = path.join(root, "bin/doitify.mjs");
 const bundle = path.join(root, "dist/workspace");
 const packageInfo = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+const protectedDirectories = ["project-knowledge", "follow-ups", "plans", "reports", "agent-scripts"];
 let manifest;
 before(async () => { manifest = await bundleWorkspace(); });
 
@@ -38,7 +39,7 @@ test("new folder gets the workspace and all three discovery references", async (
   const target = path.join(base, "new", "project with spaces");
   const result = await initWorkspace({ target });
   assert.equal(result.dryRun, false);
-  assert.equal(result.actions.filter((item) => item.action === "create").length, manifest.files.length + 3);
+  assert.equal(result.actions.filter((item) => item.action === "create").length, manifest.files.length + 4);
   assert.deepEqual(await readFile(path.join(target, "DOITIFY.md")), await readFile(path.join(bundle, "DOITIFY.md")));
   for (const name of ["AGENTS.md", "CLAUDE.md", "README.md"]) {
     assert.match(await readFile(path.join(target, name), "utf8"), /^@DOITIFY\.md$/m);
@@ -78,14 +79,15 @@ test("reinitialization preserves project-specific knowledge", async (t) => {
   assert.equal(await readFile(note, "utf8"), "Confirmed user decisions\n");
 });
 
-test("customized knowledge index conflicts without overwriting local knowledge", async (t) => {
+test("customized knowledge index is preserved on init", async (t) => {
   const target = await sandbox(t);
   const knowledge = path.join(target, ".doitify/project-knowledge");
   await mkdir(knowledge, { recursive: true });
   await writeFile(path.join(knowledge, "README.md"), "# My knowledge index\n");
-  await assert.rejects(initWorkspace({ target }), /nothing was written/);
+  const result = await initWorkspace({ target });
+  assert.equal(result.actions.find((item) => item.path === ".doitify/project-knowledge/README.md").action, "preserve");
   assert.equal(await readFile(path.join(knowledge, "README.md"), "utf8"), "# My knowledge index\n");
-  assert.equal(await lstat(path.join(target, "DOITIFY.md")).catch(() => null), null);
+  assert.ok((await lstat(path.join(target, "DOITIFY.md"))).isFile());
 });
 
 test("dry-run of a new folder creates no folder or parent", async (t) => {
@@ -328,6 +330,316 @@ test("public README uses the scoped package and explains CLI versus workspace up
   assert.match(readme, /npm install -g @doitify\/cli@latest/);
   assert.doesNotMatch(readme, /npx doitify|npm install -g doitify/);
   assert.match(readme, /does not upgrade the workspace files/);
+  assert.match(readme, /npx @doitify\/cli@latest update --dry-run/);
+  assert.match(readme, /install-state\.json/);
   assert.match(readme, /npm version patch --no-git-tag-version/);
   assert.match(readme, /separate temporary folder/);
+});
+
+// Produce a different verified bundle without touching canonical sources.
+async function nextBundle(t, changes) {
+  const directory = await sandbox(t);
+  const entries = new Map();
+  for (const file of manifest.files) entries.set(file.path, await readFile(path.join(bundle, file.path)));
+  for (const [relative, content] of Object.entries(changes)) {
+    if (content === null) entries.delete(relative);
+    else entries.set(relative, Buffer.from(content));
+  }
+  const files = [];
+  for (const [relative, content] of entries) {
+    const full = path.join(directory, relative);
+    await mkdir(path.dirname(full), { recursive: true });
+    await writeFile(full, content);
+    files.push({ path: relative, sha256: createHash("sha256").update(content).digest("hex") });
+  }
+  await writeFile(path.join(directory, "bundle.json"), JSON.stringify({ schemaVersion: 1, files }));
+  return directory;
+}
+
+test("update upgrades verified instructions but preserves all project data and host files", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const personal = {
+    ".doitify/project.md": "Confirmed mission and Board ID\n",
+    ".doitify/project-knowledge/README.md": "# Personal index\n",
+    ".doitify/project-knowledge/preferences.md": "User preferences\n",
+    ".doitify/future-data.md": "Future agent-owned data\n",
+    "AGENTS.md": "Custom instructions without import\n",
+    "CLAUDE.md": "Custom Claude instructions\n",
+    "README.md": "Custom project README\n",
+  };
+  const stats = {};
+  for (const [relative, content] of Object.entries(personal)) {
+    await writeFile(path.join(target, relative), content);
+    stats[relative] = await lstat(path.join(target, relative));
+  }
+  const bundleDirectory = await nextBundle(t, {
+    "DOITIFY.md": "# New official instructions\n",
+    ".doitify/project.md": "A changed public project starter\n",
+    ".doitify/project-knowledge/README.md": "A changed public index\n",
+    ".doitify/policies/new-policy.md": "# New policy\n",
+  });
+  const result = await updateWorkspace({ target, bundleDirectory });
+  assert.equal(result.actions.find((item) => item.path === "DOITIFY.md").action, "update");
+  assert.equal(await readFile(path.join(target, "DOITIFY.md"), "utf8"), "# New official instructions\n");
+  assert.equal(await readFile(path.join(target, ".doitify/policies/new-policy.md"), "utf8"), "# New policy\n");
+  for (const [relative, content] of Object.entries(personal)) {
+    assert.equal(await readFile(path.join(target, relative), "utf8"), content);
+    assert.equal((await lstat(path.join(target, relative))).mtimeMs, stats[relative].mtimeMs);
+  }
+  const state = JSON.parse(await readFile(path.join(target, ".doitify/install-state.json"), "utf8"));
+  assert.equal(state.managedFiles[".doitify/project.md"], undefined);
+  assert.equal(state.managedFiles[".doitify/project-knowledge/README.md"], undefined);
+  assert.equal(state.managedFiles["AGENTS.md"], undefined);
+  const repeated = await updateWorkspace({ target, bundleDirectory });
+  assert.ok(repeated.actions.every((item) => ["unchanged", "preserve"].includes(item.action)));
+});
+
+test("update conflicts abort all writes, including baseline and new files", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const baseline = await readFile(path.join(target, ".doitify/install-state.json"));
+  const original = await readFile(path.join(target, "DOITIFY.md"));
+  const skill = ".doitify/skills/task-management/SKILL.md";
+  await writeFile(path.join(target, skill), "Personal modifications\n");
+  const bundleDirectory = await nextBundle(t, {
+    "DOITIFY.md": "New instructions\n",
+    [skill]: "New official skill\n",
+    ".doitify/policies/added.md": "New policy\n",
+  });
+  for (const dryRun of [true, false]) {
+    await assert.rejects(updateWorkspace({ target, bundleDirectory, dryRun }), /locally modified/);
+  }
+  assert.deepEqual(await readFile(path.join(target, "DOITIFY.md")), original);
+  assert.deepEqual(await readFile(path.join(target, ".doitify/install-state.json")), baseline);
+  assert.equal(await readFile(path.join(target, skill), "utf8"), "Personal modifications\n");
+  assert.equal(await lstat(path.join(target, ".doitify/policies/added.md")).catch(() => null), null);
+});
+
+test("update preserves local managed edits even when upstream has not changed", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  await writeFile(path.join(target, "DOITIFY.md"), "Personal edits\n");
+  await assert.rejects(updateWorkspace({ target }), /nothing was written/);
+  assert.equal(await readFile(path.join(target, "DOITIFY.md"), "utf8"), "Personal edits\n");
+});
+
+test("update dry-run changes neither content nor modification times", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const original = await readFile(path.join(target, "DOITIFY.md"));
+  const beforeStat = await lstat(path.join(target, "DOITIFY.md"));
+  const baseline = await readFile(path.join(target, ".doitify/install-state.json"));
+  const bundleDirectory = await nextBundle(t, { "DOITIFY.md": "Updated instructions\n" });
+  const result = await updateWorkspace({ target, bundleDirectory, dryRun: true });
+  assert.ok(result.actions.some((item) => item.action === "update"));
+  assert.deepEqual(await readFile(path.join(target, "DOITIFY.md")), original);
+  assert.equal((await lstat(path.join(target, "DOITIFY.md"))).mtimeMs, beforeStat.mtimeMs);
+  assert.deepEqual(await readFile(path.join(target, ".doitify/install-state.json")), baseline);
+});
+
+test("update requires an existing workspace and creates no missing target", async (t) => {
+  const base = await sandbox(t);
+  const target = path.join(base, "missing");
+  await assert.rejects(updateWorkspace({ target }), /Run doitify init first/);
+  assert.deepEqual(await readdir(base), []);
+});
+
+test("update adopts matching legacy files but never guesses a differing legacy baseline", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  await rm(path.join(target, ".doitify/install-state.json"));
+  const bundleDirectory = await nextBundle(t, { "DOITIFY.md": "Updated instructions\n" });
+  await assert.rejects(updateWorkspace({ target, bundleDirectory }), /no verified installation baseline/);
+  assert.equal(await lstat(path.join(target, ".doitify/install-state.json")).catch(() => null), null);
+  await updateWorkspace({ target }); // Matching files can safely establish a baseline.
+  await updateWorkspace({ target, bundleDirectory });
+  assert.equal(await readFile(path.join(target, "DOITIFY.md"), "utf8"), "Updated instructions\n");
+});
+
+test("update never deletes retired files or recreates missing user data", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const retired = ".doitify/templates/activity.md";
+  const original = await readFile(path.join(target, retired));
+  await rm(path.join(target, ".doitify/project.md"));
+  await rm(path.join(target, ".doitify/project-knowledge/README.md"));
+  const bundleDirectory = await nextBundle(t, { [retired]: null });
+  await updateWorkspace({ target, bundleDirectory });
+  assert.deepEqual(await readFile(path.join(target, retired)), original);
+  assert.equal(await lstat(path.join(target, ".doitify/project.md")).catch(() => null), null);
+  assert.equal(await lstat(path.join(target, ".doitify/project-knowledge/README.md")).catch(() => null), null);
+});
+
+test("a newly managed path cannot overwrite a preexisting custom file", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const relative = ".doitify/policies/future.md";
+  await writeFile(path.join(target, relative), "Custom local policy\n");
+  const bundleDirectory = await nextBundle(t, { [relative]: "New official policy\n" });
+  await assert.rejects(updateWorkspace({ target, bundleDirectory }), /nothing was written/);
+  assert.equal(await readFile(path.join(target, relative), "utf8"), "Custom local policy\n");
+});
+
+test("corrupt, unsupported or unsafe install state aborts without writes", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const original = await readFile(path.join(target, "DOITIFY.md"));
+  const bundleDirectory = await nextBundle(t, { "DOITIFY.md": "Updated\n" });
+  for (const state of [
+    "{",
+    JSON.stringify({ schemaVersion: 2, packageVersion: "1", managedFiles: {} }),
+    JSON.stringify({ schemaVersion: 1, packageVersion: "1", managedFiles: { "../escape": "a".repeat(64) } }),
+  ]) {
+    await writeFile(path.join(target, ".doitify/install-state.json"), state);
+    await assert.rejects(updateWorkspace({ target, bundleDirectory }), /Invalid .doitify\/install-state.json/);
+    assert.deepEqual(await readFile(path.join(target, "DOITIFY.md")), original);
+  }
+});
+
+test("update rejects symlink and hard-linked managed files and install state", { skip: process.platform === "win32" }, async (t) => {
+  for (const relative of ["DOITIFY.md", ".doitify/install-state.json"]) {
+    for (const makeLink of [symlink, link]) {
+      const base = await sandbox(t);
+      const target = path.join(base, "project");
+      await initWorkspace({ target });
+      const destination = path.join(target, relative);
+      const outside = path.join(base, "outside");
+      const original = await readFile(destination);
+      await writeFile(outside, original);
+      await rm(destination);
+      await makeLink(outside, destination);
+      await assert.rejects(updateWorkspace({ target }), /symbolic link|non-hard-linked/);
+      assert.deepEqual(await readFile(outside), original);
+    }
+  }
+});
+
+test("CLI update accepts help/target/dry-run and rejects force", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  assert.match(execFileSync(process.execPath, [binary, "update", "--help"], { encoding: "utf8" }), /doitify update/);
+  const result = execFileSync(process.execPath, [binary, "update", "--target", target, "--dry-run"], { encoding: "utf8" });
+  assert.match(result, /no files were written/);
+  assert.match(result, /preserve.*project-knowledge\/README.md/);
+  assert.equal(spawnSync(process.execPath, [binary, "update", "--force"], { cwd: target }).status, 1);
+});
+
+test("real CLI updates an older verified installation and leaves user knowledge intact", async (t) => {
+  const target = await sandbox(t);
+  const oldBundle = await nextBundle(t, { "DOITIFY.md": "Older official instructions\n" });
+  await initWorkspace({ target, bundleDirectory: oldBundle });
+  const note = path.join(target, ".doitify/project-knowledge/README.md");
+  await writeFile(note, "# My learned context\n");
+  const baseline = await readFile(path.join(target, ".doitify/install-state.json"));
+  await assert.rejects(initWorkspace({ target }), /Use doitify update/);
+  assert.deepEqual(await readFile(path.join(target, ".doitify/install-state.json")), baseline);
+  const output = execFileSync(process.execPath, [binary, "update"], { cwd: target, encoding: "utf8" });
+  assert.match(output, /update\s+DOITIFY.md/);
+  assert.deepEqual(await readFile(path.join(target, "DOITIFY.md")), await readFile(path.join(bundle, "DOITIFY.md")));
+  assert.equal(await readFile(note, "utf8"), "# My learned context\n");
+});
+
+test("user-data protection overrides a previously recorded managed hash", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const stateFile = path.join(target, ".doitify/install-state.json");
+  const state = JSON.parse(await readFile(stateFile, "utf8"));
+  for (const relative of [".doitify/project.md", ".doitify/project-knowledge/README.md"]) {
+    const original = await readFile(path.join(target, relative));
+    state.managedFiles[relative] = createHash("sha256").update(original).digest("hex");
+  }
+  await writeFile(stateFile, JSON.stringify(state));
+  const bundleDirectory = await nextBundle(t, {
+    ".doitify/project.md": "New starter\n",
+    ".doitify/project-knowledge/README.md": "New index\n",
+  });
+  await updateWorkspace({ target, bundleDirectory });
+  assert.deepEqual(await readFile(path.join(target, ".doitify/project.md")), await readFile(path.join(bundle, ".doitify/project.md")));
+  const updatedState = JSON.parse(await readFile(stateFile, "utf8"));
+  assert.equal(updatedState.managedFiles[".doitify/project.md"], undefined);
+  assert.equal(updatedState.managedFiles[".doitify/project-knowledge/README.md"], undefined);
+});
+
+test("all local workflow directories preserve customized indexes and generated contents on init and update", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const personal = new Map();
+  for (const directory of protectedDirectories) {
+    const relative = `.doitify/${directory}`;
+    await mkdir(path.join(target, relative, "nested"));
+    personal.set(`${relative}/README.md`, `# Personal ${directory} index\n`);
+    personal.set(`${relative}/nested/item.md`, `Private ${directory} record\n`);
+  }
+  personal.set(".doitify/agent-scripts/check-replies.sh", "#!/bin/sh\n# Local helper; never run by installer\n");
+  const before = new Map();
+  for (const [relative, content] of personal) {
+    await writeFile(path.join(target, relative), content);
+    before.set(relative, await lstat(path.join(target, relative)));
+  }
+  await initWorkspace({ target });
+  const changes = Object.fromEntries(protectedDirectories.map((directory) => [
+    `.doitify/${directory}/README.md`, `# New vendor ${directory} starter\n`,
+  ]));
+  changes["DOITIFY.md"] = "New official instructions\n";
+  const bundleDirectory = await nextBundle(t, changes);
+  await updateWorkspace({ target, bundleDirectory });
+  for (const [relative, content] of personal) {
+    assert.equal(await readFile(path.join(target, relative), "utf8"), content);
+    assert.equal((await lstat(path.join(target, relative))).mtimeMs, before.get(relative).mtimeMs);
+  }
+  const state = JSON.parse(await readFile(path.join(target, ".doitify/install-state.json"), "utf8"));
+  assert.ok(Object.keys(state.managedFiles).every((relative) =>
+    !protectedDirectories.some((directory) => relative.startsWith(`.doitify/${directory}/`))));
+});
+
+test("distribution includes only public workflow starters, never local records or executable helpers", async (t) => {
+  const source = await sandbox(t);
+  for (const file of manifest.files) {
+    const destination = path.join(source, file.path);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, await readFile(path.join(bundle, file.path)));
+  }
+  for (const directory of protectedDirectories) {
+    await mkdir(path.join(source, ".doitify", directory, "private"));
+    await writeFile(path.join(source, ".doitify", directory, "private", "record.md"), "PRIVATE_LOCAL_DATA\n");
+  }
+  await writeFile(path.join(source, ".doitify/agent-scripts/check.sh"), "#!/bin/sh\nPRIVATE_LOCAL_DATA\n");
+  const collected = await collectWorkspace(source);
+  for (const directory of protectedDirectories) {
+    assert.deepEqual(
+      collected.filter((file) => file.path.startsWith(`.doitify/${directory}/`)).map((file) => file.path),
+      [`.doitify/${directory}/README.md`],
+    );
+  }
+  assert.ok(collected.every((file) => !file.content.includes("PRIVATE_LOCAL_DATA")));
+});
+
+test("update leaves deliberately absent protected workflow indexes absent", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  for (const directory of protectedDirectories) await rm(path.join(target, ".doitify", directory, "README.md"));
+  await updateWorkspace({ target });
+  for (const directory of protectedDirectories) {
+    assert.equal(await lstat(path.join(target, ".doitify", directory, "README.md")).catch(() => null), null);
+  }
+});
+
+test("an older tracked hash cannot override new workflow-directory protection", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const stateFile = path.join(target, ".doitify/install-state.json");
+  const state = JSON.parse(await readFile(stateFile, "utf8"));
+  const changes = {};
+  for (const directory of protectedDirectories) {
+    const relative = `.doitify/${directory}/README.md`;
+    state.managedFiles[relative] = createHash("sha256").update(await readFile(path.join(target, relative))).digest("hex");
+    changes[relative] = "Changed official starter\n";
+  }
+  await writeFile(stateFile, JSON.stringify(state));
+  await updateWorkspace({ target, bundleDirectory: await nextBundle(t, changes) });
+  for (const directory of protectedDirectories) {
+    const relative = `.doitify/${directory}/README.md`;
+    assert.deepEqual(await readFile(path.join(target, relative)), await readFile(path.join(bundle, relative)));
+  }
 });

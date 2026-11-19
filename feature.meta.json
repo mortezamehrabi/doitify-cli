@@ -1,6 +1,6 @@
 {
   "name": "doitify-cli",
-  "responsibility": "Install the existing Doitify instruction workspace into new or existing folders without replacing user files, credentials or client configuration.",
+  "responsibility": "Install and safely update the Doitify instruction workspace using verified installed hashes while preserving user settings, knowledge, host files, credentials and client configuration.",
   "entryPoints": ["bin/doitify.mjs", "src/init.mjs", "scripts/bundle-workspace.mjs"],
   "contract": {
     "primaryFiles": ["bin/doitify.mjs", "src/init.mjs"],
