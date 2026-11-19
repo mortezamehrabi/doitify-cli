@@ -10,6 +10,8 @@ const sourcePaths = [
   "DOITIFY.md",
   ".doitify/project.md",
   ".doitify/connection.md",
+  // Only the public starter; never recursively bundle learned project notes.
+  ".doitify/project-knowledge/README.md",
   ".doitify/policies",
   ".doitify/skills",
   ".doitify/workflows",

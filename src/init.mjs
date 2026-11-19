@@ -50,6 +50,7 @@ function validBundlePath(relative) {
       relative.split("/").some((part) => !part || part === "." || part === "..")) return false;
   return relative === "DOITIFY.md" ||
     relative === ".doitify/project.md" || relative === ".doitify/connection.md" ||
+    relative === ".doitify/project-knowledge/README.md" ||
     /^\.doitify\/(policies|skills|templates|workflows)\/[\w./-]+\.md$/.test(relative);
 }
 

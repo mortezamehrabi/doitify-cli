@@ -1,6 +1,6 @@
 {
   "name": "@doitify/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bring your AI agent into Doitify: safely add MCP instructions, skills and guardrails to any project.",
   "repository": {
     "type": "git",

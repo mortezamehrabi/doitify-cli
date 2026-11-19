@@ -25,11 +25,21 @@ npx @doitify/cli@latest init
 
 Then open your preferred agent, such as Codex or Claude Code, and say:
 
-> Read DOITIFY.md and initialize this project for Doitify.
+> Start / شروع کن
 
-The instructions guide the agent to understand your project, confirm its
-mission and allowed Boards, and verify its existing Doitify MCP connection.
-You complete any required login in your client's normal authentication flow.
+The agent connects first: server `doitify`, URL `https://ai-api.doitify.com/mcp`,
+HTTP (streamable), OAuth 2.1. You sign in and authorize in the browser, then
+choose the Doitify Board for this folder. The agent saves the binding in
+`.doitify/project.md`, reads the charter, and clarifies your desired work and
+its role—even if the charter is already complete. It independently records
+important confirmed facts in shared charter/documents and verifies the result,
+without separate approval for routine non-destructive knowledge updates.
+Explicit restrictions and server permissions still apply.
+
+Local understanding, preferences, decisions and lessons grow in
+`.doitify/project-knowledge/`. Later sessions reuse the selected Board, verify
+access and refresh relevant live context rather than asking you to select again.
+The npm package includes only the public knowledge starter, not learned notes.
 
 Once authorized, the agent can use existing MCP tools to find assigned tasks,
 perform work, update progress, ask questions, document results and hand off for
@@ -40,7 +50,7 @@ review. Available actions depend on your deployment, client and account permissi
 ```text
 your-project/
 ├── DOITIFY.md        # Shared Doitify instructions
-├── .doitify/         # Project settings, policies, skills and templates
+├── .doitify/         # Settings, project-knowledge/, policies, skills and templates
 ├── AGENTS.md         # Reference added; existing content preserved
 ├── CLAUDE.md         # Reference added; existing content preserved
 └── README.md         # Reference added; existing content preserved
@@ -106,7 +116,8 @@ overwriting your changes.
 
 For now, back up or commit your project, initialize the latest version in a
 separate temporary folder, and review/merge the instruction changes manually.
-Keep your own `.doitify/project.md` and host rules. Do not delete your existing
+Keep your own `.doitify/project.md`, `.doitify/project-knowledge/` and host rules.
+Merge new knowledge guidance without replacing your notes. Do not delete your existing
 workspace just to bypass a conflict.
 
 ## Scope and compatibility

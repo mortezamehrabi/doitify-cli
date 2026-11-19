@@ -45,6 +45,47 @@ test("new folder gets the workspace and all three discovery references", async (
   }
   assert.equal(await lstat(path.join(target, "package.json")).catch(() => null), null);
   assert.equal(await lstat(path.join(target, ".doitify/.etc")).catch(() => null), null);
+  assert.match(
+    await readFile(path.join(target, ".doitify/project-knowledge/README.md"), "utf8"),
+    /# Project knowledge/,
+  );
+});
+
+test("knowledge starter is bundled but learned notes are not collected", async (t) => {
+  const source = await sandbox(t);
+  for (const file of manifest.files) {
+    const full = path.join(source, file.path);
+    await mkdir(path.dirname(full), { recursive: true });
+    await writeFile(full, await readFile(path.join(bundle, file.path)));
+  }
+  const privateNotes = path.join(source, ".doitify/project-knowledge/private");
+  await mkdir(privateNotes);
+  await writeFile(path.join(privateNotes, "decisions.md"), "PRIVATE_PROJECT_FACT\n");
+  const files = await collectWorkspace(source);
+  assert.deepEqual(
+    files.filter((file) => file.path.startsWith(".doitify/project-knowledge/")).map((file) => file.path),
+    [".doitify/project-knowledge/README.md"],
+  );
+  assert.ok(files.every((file) => !file.content.includes("PRIVATE_PROJECT_FACT")));
+});
+
+test("reinitialization preserves project-specific knowledge", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const note = path.join(target, ".doitify/project-knowledge/decisions.md");
+  await writeFile(note, "Confirmed user decisions\n");
+  await initWorkspace({ target });
+  assert.equal(await readFile(note, "utf8"), "Confirmed user decisions\n");
+});
+
+test("customized knowledge index conflicts without overwriting local knowledge", async (t) => {
+  const target = await sandbox(t);
+  const knowledge = path.join(target, ".doitify/project-knowledge");
+  await mkdir(knowledge, { recursive: true });
+  await writeFile(path.join(knowledge, "README.md"), "# My knowledge index\n");
+  await assert.rejects(initWorkspace({ target }), /nothing was written/);
+  assert.equal(await readFile(path.join(knowledge, "README.md"), "utf8"), "# My knowledge index\n");
+  assert.equal(await lstat(path.join(target, "DOITIFY.md")).catch(() => null), null);
 });
 
 test("dry-run of a new folder creates no folder or parent", async (t) => {
