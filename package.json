@@ -1,0 +1,39 @@
+{
+  "name": "@doitify/cli",
+  "version": "0.1.1",
+  "description": "Bring your AI agent into Doitify: safely add MCP instructions, skills and guardrails to any project.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mortezamehrabi/doitify-cli.git"
+  },
+  "homepage": "https://github.com/mortezamehrabi/doitify-cli#readme",
+  "bugs": {
+    "url": "https://github.com/mortezamehrabi/doitify-cli/issues"
+  },
+  "type": "module",
+  "bin": {
+    "doitify": "bin/doitify.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "dist/workspace/"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "doitify",
+    "mcp",
+    "ai-agents",
+    "codex",
+    "claude-code",
+    "guardrails"
+  ],
+  "scripts": {
+    "build": "node scripts/bundle-workspace.mjs",
+    "prepack": "npm run build",
+    "test": "node --test",
+    "check": "node --check bin/doitify.mjs && node --check src/init.mjs && node --check scripts/bundle-workspace.mjs && node --check test/init.test.mjs"
+  }
+}
