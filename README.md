@@ -1,205 +1,195 @@
 # Doitify CLI
 
-**Bring your AI agent into your Doitify workflow—in any project.**
+**Bring your AI agent into your team's project workflow.**
 
-Set up the instructions, skills and guardrails your agent needs to work with
-Doitify through MCP. Use it in an existing codebase or an empty folder for
-content, research, planning or other work.
+[Doitify](https://doitify.com) brings project work, tasks and team collaboration
+together. **Doitify CLI** adds the instructions your AI agent needs to work in
+that context through MCP: understand the project, carry out its mission, share
+progress and keep useful knowledge between sessions.
 
-**No runtime dependencies. No changes to your app's dependencies. No separate
-task database or agent runtime.**
+Use it in an existing codebase or an empty folder—for development, content,
+research, design or planning. It works alongside your preferred MCP-capable
+agent; it does not replace your tools or run a separate agent service.
 
-## Quick start
+[Visit Doitify](https://doitify.com) ·
+[npm package](https://www.npmjs.com/package/@doitify/cli) ·
+[GitHub](https://github.com/mortezamehrabi/doitify-cli) ·
+[Report an issue](https://github.com/mortezamehrabi/doitify-cli/issues)
 
-Requires **Node.js 22+**, an MCP-capable agent client and access to Doitify.
+## Get started
 
-Inside your working folder:
+You need **Node.js 22+**, a [Doitify account](https://doitify.com) with access to
+your Board, and an agent client that supports **streamable HTTP MCP and OAuth
+2.1**. Codex and Claude Code are examples; available setup controls depend on
+your client.
+
+### 1. Add the workspace
+
+Run these commands in the folder where your agent will work:
 
 ```bash
-# Preview the changes without writing files
+# Preview first — no files are written
 npx @doitify/cli@latest init --dry-run
 
-# Add the workspace
+# Install the workspace instructions
 npx @doitify/cli@latest init
 ```
 
-Then open your preferred agent, such as Codex or Claude Code, and say:
+No changes to your application's dependencies. No runtime dependencies,
+background service or additional task database.
 
-> Start / شروع کن
+### 2. Ask your agent to start
 
-The agent connects first: server `doitify`, URL `https://ai-api.doitify.com/mcp`,
-HTTP (streamable), OAuth 2.1. You sign in and authorize in the browser, then
-choose the Doitify Board for this folder. The agent saves the binding in
-`.doitify/project.md`, reads the charter, and clarifies your desired work and
-its role—even if the charter is already complete. It independently records
-important confirmed facts in shared charter/documents and verifies the result,
-without separate approval for routine non-destructive knowledge updates.
-Explicit restrictions and server permissions still apply.
+Open your agent in the same folder and say:
 
-Local understanding, preferences, decisions and lessons grow in
-`.doitify/project-knowledge/`. Later sessions reuse the selected Board, verify
-access and refresh relevant live context rather than asking you to select again.
-The npm package includes only the public knowledge starter, not learned notes.
+> Read DOITIFY.md and start.
 
-The agent submits evidence-based individual work reports after meaningful progress
-and before session end, once or multiple times per day without duplicate work/time.
-Relevant Task/subtask/Board/direct-chat collaboration is routine mission work.
-It records exact destinations and outstanding replies in `.doitify/follow-ups/`
-and returns to check them; a stopped client needs resuming unless an actual
-supported scheduler/runner is verified. OS cron changes need explicit authorization.
-Local plans, report evidence and helper scripts have their own protected folders.
+Once your client has loaded the instructions, “Start” or “شروع کن” works too.
+The agent guides you through:
 
-Once authorized, the agent can use existing MCP tools to find assigned tasks,
-perform work, update progress, ask questions, document results and hand off for
-review. Available actions depend on your deployment, client and account permissions.
+1. **Connect:** configure the Doitify MCP and complete browser sign-in.
+2. **Choose your project:** select the Doitify Board for this local folder.
+3. **Set the mission:** read the project charter and clarify what you want the
+   agent to do—not every project or role is software development.
+4. **Get to work:** save the Board binding and project context for future sessions.
 
-## What gets added?
+You complete sign-in and authorization yourself. If your client cannot configure
+MCP automatically, the agent provides the settings for you to add manually:
+
+| Setting | Value |
+|---|---|
+| Server name | `doitify` |
+| URL | `https://ai-api.doitify.com/mcp` |
+| Transport | HTTP (streamable) |
+| Authentication | OAuth 2.1 |
+
+**The installer itself does not configure MCP, log in or contact Doitify.**
+Never put passwords or access tokens in the workspace.
+
+## What the workspace teaches your agent
+
+| Capability | How it helps |
+|---|---|
+| Project understanding | Read the charter, fill gaps and keep important confirmed facts in shared documentation. |
+| Task work | Find relevant assigned work, plan, execute, verify and hand off with evidence. |
+| Team collaboration | Use supported Task, subtask, Board or direct chats; record where to return for replies. |
+| Work reporting | Submit factual individual reports after meaningful progress and before session end, once or many times per day without double-counting. |
+| Persistent knowledge | Retain project context, decisions, preferences and lessons locally between sessions. |
+| Follow-through | Revisit unanswered questions and capture genuinely deferred work as linked Doitify tasks. |
+
+Routine in-scope documentation, reporting and collaboration do not need a new
+approval question for every update. Explicit user restrictions, host rules,
+server permissions and the tools actually available remain authoritative.
+The instructions do not grant access or guarantee that every client supports
+every action.
+
+## Your files stay yours
 
 ```text
 your-project/
-├── DOITIFY.md        # Shared Doitify instructions
-├── .doitify/         # Settings, project-knowledge/, policies, skills and templates
-├── AGENTS.md         # Reference added; existing content preserved
-├── CLAUDE.md         # Reference added; existing content preserved
-└── README.md         # Reference added; existing content preserved
+├── DOITIFY.md                 # Shared agent instructions
+├── .doitify/
+│   ├── project.md             # Your Board binding, role and mission
+│   ├── project-knowledge/     # Context, decisions and lessons
+│   ├── follow-ups/            # Questions, reply locations and next checks
+│   ├── plans/                 # Immediate and deferred work plans
+│   ├── reports/               # Pending evidence and sent-report references
+│   ├── agent-scripts/         # Optional local workflow helpers
+│   ├── policies/              # Shared safety and lifecycle guidance
+│   ├── skills/                # Instructions loaded as needed
+│   ├── workflows/             # Shared work patterns
+│   ├── templates/             # Reusable examples
+│   └── install-state.json     # Installer-owned instruction hashes
+├── AGENTS.md                  # Existing content kept; reference added
+├── CLAUDE.md                  # Existing content kept; reference added
+└── README.md                  # Existing content kept; reference added
 ```
 
-`DOITIFY.md` is the shared entry point. The other Markdown files reference it
-with `@DOITIFY.md`; clients without import support can read it explicitly.
-Only the skill needed for the current task is loaded.
+`DOITIFY.md` is the shared entry point. Clients that do not expand `@DOITIFY.md`
+references should read the file explicitly.
 
-### Safe for existing projects
+- Existing host instructions are preserved; missing discovery references are appended.
+- Re-running `init` does not reset your project settings or replace existing
+  knowledge, follow-ups, plans, reports or agent scripts.
+- Only public starter indexes ship in the package—not your notes, records or
+  generated scripts. These files may contain private project information;
+  review your own Git sharing policy before committing them.
+- Conflicts stop the plan before writes. There is no `--force` overwrite.
 
-- Existing `AGENTS.md`, `CLAUDE.md` and `README.md` content is preserved.
-- Customized `.doitify/project.md` settings are preserved.
-- All of `.doitify/project-knowledge/`, including its customized README, is preserved.
-- Entire `.doitify/follow-ups/`, `plans/`, `reports/` and `agent-scripts/` trees are
-  also user-owned; only their public README starters are distributed.
-- Running `init` again does not duplicate references.
-- Conflicting workspace files stop installation before writes; no `--force`.
-- The installer does not read credentials, configure MCP, make network requests
-  or change data in Doitify. npm itself downloads the package as usual.
+## Update without losing project knowledge
 
-Commit or back up your project before setup and review the dry-run.
-Do not edit files concurrently with installation. Writes are per-file, not a
-transaction: an I/O failure can leave a partial install that needs inspection.
-
-## Commands
-
-| Command | Purpose |
-|---|---|
-| `doitify init` | Initialize the current folder |
-| `doitify init --dry-run` | Preview without writing |
-| `doitify init --target "/path/to/project"` | Initialize a different folder |
-| `doitify update` | Safely update installed instructions |
-| `doitify update --dry-run` | Preview an instruction update without writes |
-| `doitify update --target "/path/to/project"` | Update a different workspace |
-| `doitify --version` | Show the installed CLI version |
-| `doitify --help` | Show usage |
-
-To use the `doitify` command directly:
-
-```bash
-npm install -g @doitify/cli
-doitify init
-```
-
-## Updating
-
-### Get the latest CLI
-
-For one-off use, request the latest published version explicitly:
-
-```bash
-npx @doitify/cli@latest --version
-```
-
-For a global installation:
-
-```bash
-npm install -g @doitify/cli@latest
-doitify --version
-```
-
-### What about an existing workspace?
-
-**Updating the CLI does not upgrade the workspace files already in your project.**
-Use the latest CLI's explicit update command:
+Updating the CLI does not upgrade the workspace files already in your project.
+Use the explicit workspace update command:
 
 ```bash
 npx @doitify/cli@latest update --dry-run
 npx @doitify/cli@latest update
 ```
 
-Or, after updating a global installation, run `doitify update`.
-Back up or commit first and review the preview.
+`update` refreshes bundled instruction files only when their current content
+matches the installed hash in `.doitify/install-state.json`. Locally edited or
+unverified files cause a conflict instead of being overwritten.
 
-| Content | `init` | `update` |
-|---|---|---|
-| `.doitify/project.md` | Create only if missing; preserve existing settings | Never write or recreate |
-| Entire `.doitify/project-knowledge/` | Create the starter index only if missing; preserve all existing notes | Never write, traverse or recreate |
-| Entire `.doitify/follow-ups/`, `.doitify/plans/`, `.doitify/reports/`, `.doitify/agent-scripts/` | Create starter indexes only if missing; preserve existing content | Never write, traverse or recreate |
-| `DOITIFY.md`, bundled connection/policies/skills/workflows/templates | Create missing files; stop on differing existing files | Replace only when content matches the recorded installed hash |
-| Host `AGENTS.md`, `CLAUDE.md`, `README.md` | Preserve content; append missing discovery reference | Never modify |
-| Other local files/folders | Leave alone | Leave alone |
+**Your local project data and host instructions are protected:** `update` never
+changes `.doitify/project.md`, any content in the five user-owned folders shown
+above, or host `AGENTS.md`, `CLAUDE.md` and `README.md`. Other local files are left
+alone and retired instructions are never deleted. Missing protected folders can
+be created by your agent when needed.
 
-The CLI records installed instruction hashes and the CLI version in
-`.doitify/install-state.json`. This is installer metadata, not an agent memory,
-identity, permission grant or task database. Do not edit it or store project
-facts there. It contains no project settings, knowledge contents or credentials.
-Keep it with the workspace so later updates can detect local modifications.
+Older or manually copied workspaces may not have an installation baseline.
+Matching files can establish one; differing files require review. Back up your
+workspace, initialize a fresh copy in a separate temporary folder, and manually
+merge the instruction changes—never delete your knowledge to resolve a conflict.
 
-An update creates new managed instruction files but never deletes retired files.
-Even a newly introduced instruction cannot replace a differing local file.
-Any conflict stops the entire plan before writes, including metadata changes;
-there is no `--force`. No automatic text merging is attempted.
-Per-file writes are atomic, but the complete installation is not a transaction.
+Back up or commit before installation/update and do not edit files concurrently.
+Writes are atomic per file, not across the entire workspace; an I/O failure may
+leave a partial installation that needs inspection.
 
-**Older/manually copied workspaces:** without an installation baseline, a
-differing file cannot safely be identified as old vendor content versus a user
-edit. Matching current files can establish a baseline; differing files stop the
-update with their paths. Back up the workspace, run the latest `init` in a
-separate temporary folder, and manually review/merge the instruction changes.
-If you retain customized managed files, future differing updates still require
-manual review. Do not delete the workspace or your knowledge to bypass a conflict.
+## Commands
 
-For maintainers, `userDataPaths` in `src/init.mjs` is the single protection list
-for agent-owned files and directory prefixes, with trees listed in
-`userDataDirectories`. Add future writable data locations
-there before shipping them. Protection takes precedence over an old tracked hash.
-Unknown local files are never swept or deleted.
-An update intentionally does not recreate protected folders or indexes; an agent
-can create missing local data folders when needed without replacing existing data.
+| Command | Purpose |
+|---|---|
+| `doitify init` | Add the workspace to the current folder |
+| `doitify update` | Safely update installed instructions |
+| `doitify init --dry-run` | Preview installation without writing |
+| `doitify update --dry-run` | Preview an update without writing |
+| `doitify init --target "/path/to/project"` | Install into another folder |
+| `doitify update --target "/path/to/project"` | Update another workspace |
+| `doitify --version` | Show the CLI version |
+| `doitify --help` | Show usage |
 
-## Scope and compatibility
-
-The [npm package](https://www.npmjs.com/package/@doitify/cli) contains the
-Doitify Agent Workspace instructions; users do not need the development workspace repository.
-It does not start an agent, grant permissions or wake a stopped client.
-Your host and Doitify remain responsible for enforcing access.
-
-The installer has been tested locally on Linux. Verify your native client,
-operating system and MCP deployment before relying on a live workflow.
-The raw workspace can also be copied manually without Node.js.
-
-## Maintainer releases
-
-Use the source project, not the globally installed package. Keep the canonical
-`doitify-agent-workspace` checkout beside `doitify-cli`; packaging reads a fresh
-instruction snapshot from it. Published users do not need that checkout.
-The development workspace can remain private; installing from npm never
-requires access to it. Building/testing this source checkout requires that
-workspace source, so external contributors without it should not expect a build.
+Prefer a global installation?
 
 ```bash
-npm version patch --no-git-tag-version
-npm test
-npm run check
-npm pack --dry-run
-npm publish --access public
+npm install -g @doitify/cli@latest
+doitify init
+
+# Later, update the CLI and then your workspace
+npm install -g @doitify/cli@latest
+doitify update --dry-run
+doitify update
 ```
 
-Use `minor` for backward-compatible features and `major` for breaking changes.
-Every release, including README-only changes, needs a new version.
-Publication requires npm authentication with permission for the `doitify` scope.
-Never commit a token or private project settings.
+The npm package name is **`@doitify/cli`**; the installed command is **`doitify`**.
+
+## What this is—and isn't
+
+This is a file installer and instruction workspace, **not an autonomous agent
+runner**. Your client performs the work using its tools and Doitify access.
+Copying files does not authenticate an account, start work or wake a stopped
+client. Scheduled checks need a real supported scheduler/runner; OS cron changes
+and persistent processes require explicit authorization.
+
+The installer is tested locally on Linux. Verify your operating system, native
+client and MCP deployment before relying on unattended behavior.
+For manual setup without Node.js, use the
+[Doitify Agent Workspace](https://github.com/mortezamehrabi/doitify-agent-workspace)
+if you have repository access.
+
+Want to contribute? See the
+[contribution guide](https://github.com/mortezamehrabi/doitify-cli/blob/main/CONTRIBUTING.md).
+
+---
+
+**Keep your team and your agent working in the same project context.**
+[Explore Doitify →](https://doitify.com)

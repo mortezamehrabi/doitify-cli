@@ -326,13 +326,21 @@ test("CLI defaults to current working directory and supports repeat invocation",
 test("public README uses the scoped package and explains CLI versus workspace updates", async () => {
   const readme = await readFile(path.join(root, "README.md"), "utf8");
   assert.equal(packageInfo.name, "@doitify/cli");
+  assert.match(readme, /\[Visit Doitify\]\(https:\/\/doitify\.com\)/);
+  assert.match(readme, /\[npm package\]\(https:\/\/www\.npmjs\.com\/package\/@doitify\/cli\)/);
   assert.match(readme, /npx @doitify\/cli@latest init/);
   assert.match(readme, /npm install -g @doitify\/cli@latest/);
   assert.doesNotMatch(readme, /npx doitify|npm install -g doitify/);
   assert.match(readme, /does not upgrade the workspace files/);
   assert.match(readme, /npx @doitify\/cli@latest update --dry-run/);
   assert.match(readme, /install-state\.json/);
-  assert.match(readme, /npm version patch --no-git-tag-version/);
+  assert.doesNotMatch(readme, /npm (?:version|publish|test|run check|pack)\b/);
+  assert.match(readme, /https:\/\/github\.com\/mortezamehrabi\/doitify-cli\/blob\/main\/CONTRIBUTING\.md/);
+  const contributing = await readFile(path.join(root, "CONTRIBUTING.md"), "utf8");
+  for (const command of [
+    "npm version patch --no-git-tag-version", "npm test", "npm run check",
+    "npm pack --dry-run", "npm publish --access public",
+  ]) assert.ok(contributing.includes(command));
   assert.match(readme, /separate temporary folder/);
 });
 
