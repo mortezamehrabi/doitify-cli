@@ -126,20 +126,26 @@ npx @doitify/cli@latest update --dry-run
 npx @doitify/cli@latest update
 ```
 
-`update` refreshes bundled instruction files only when their current content
-matches the installed hash in `.doitify/install-state.json`. Locally edited or
-unverified files cause a conflict instead of being overwritten.
+`update` refreshes bundled instruction files when their current content matches
+the installed hash in `.doitify/install-state.json`. For older installations
+without a recorded hash, it can also recognize exact copies from supported
+official releases. Locally edited or unverified files cause a conflict instead
+of being overwritten.
 
 **Your local project data and host instructions are protected:** `update` never
-changes `.doitify/project.md`, any content in the five user-owned folders shown
-above, or host `AGENTS.md`, `CLAUDE.md` and `README.md`. Other local files are left
-alone and retired instructions are never deleted. Missing protected folders can
-be created by your agent when needed.
+changes `.doitify/project.md`, existing content in the five user-owned folders
+shown above, or host `AGENTS.md`, `CLAUDE.md` and `README.md`. If an entire user-owned
+folder is missing, it creates that folder with its public starter README.
+Existing folders are left alone, even if their README was removed. Other local
+files are left alone and retired instructions are never deleted.
 
 Older or manually copied workspaces may not have an installation baseline.
-Matching files can establish one; differing files require review. Back up your
-workspace, initialize a fresh copy in a separate temporary folder, and manually
-merge the instruction changes—never delete your knowledge to resolve a conflict.
+Exact official instruction hashes from `0.1.0` and `0.1.2` are recognized offline
+and migrated automatically; matching current files can also establish a baseline.
+A recorded hash always takes precedence over release history. Unknown or modified
+files require review: back up your workspace, initialize a fresh copy in a
+separate temporary folder, and manually merge the instruction changes—never
+delete your knowledge to resolve a conflict.
 
 Back up or commit before installation/update and do not edit files concurrently.
 Writes are atomic per file, not across the entire workspace; an I/O failure may

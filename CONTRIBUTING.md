@@ -38,6 +38,18 @@ Protection must take precedence over previously installed instruction hashes.
 Shared instruction changes belong in the canonical workspace, not a second
 copy maintained inside the CLI.
 
+`src/legacy-hashes.json` contains only public instruction hashes from verified
+published tarballs, currently `@doitify/cli@0.1.0` and `0.1.2`. Both tarballs'
+workspace manifest hashes were checked against their actual file bytes.
+This enables offline migration without an installation baseline; it must never
+override an existing recorded hash or include user data paths.
+
+When adding release history, verify the official tarball's integrity and each
+file hash, exclude every protected path, and add an offline regression fixture.
+Never derive trusted migration hashes from an arbitrary local project. Creating
+an absent user-owned folder may add its public starter, but an existing folder
+and even its intentionally missing index must remain untouched.
+
 ## Local checks
 
 From the CLI repository:

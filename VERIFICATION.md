@@ -1,13 +1,14 @@
 # Local verification
 
-The current source adds safe `update` support. These changes have not been
-published as part of this task; installation from npm requires a separate release.
+The current source prepares `0.1.3`: it initializes absent user-owned folders on
+update and recognizes verified official `0.1.0`/`0.1.2` instruction hashes for
+offline legacy migration. It has not been published as part of this task.
 
 ## Automated tests
 
 ```text
 npm test
-45 passed; 0 failed; 0 skipped
+52 passed; 0 failed; 0 skipped
 
 npm run check
 All four JavaScript modules passed Node syntax checks.
@@ -29,12 +30,22 @@ Installation hashes contain only managed instruction paths and content digests.
 Protected-directory tests include customized follow-up/plan/report indexes,
 nested records and generated `.sh` helpers. They cover repeat init, update,
 missing-index preservation, prior managed hashes and exclusion from distribution.
+Additional checks cover absent-directory creation and its dry-run, exact legacy
+release migration, rejection of edited legacy files, recorded-baseline precedence,
+file collisions and symlinks. Migration data was compared with each published
+tarball's workspace bytes and manifest. No network is used by these tests.
+
+A real read-only preview against the reported legacy TestProject succeeded:
+it planned instruction upgrades, five missing starter folders and installation
+metadata while preserving project settings. No project files were written.
 
 ## Package acceptance
 
-The current `npm pack --dry-run` includes 33 allowlisted files, including 28
+The current `npm pack --dry-run` includes 34 allowlisted files, including 28
 operational instruction files from the canonical workspace. Project-specific
 knowledge and the local-only publishing script are excluded.
+The additional source file is `src/legacy-hashes.json`, containing only public
+managed instruction hashes, not project data or executable downloaded code.
 The package has no runtime dependencies or installation lifecycle hooks.
 Developer files, metadata, source repository history and credentials are excluded.
 

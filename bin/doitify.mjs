@@ -15,6 +15,7 @@ AGENTS.md, CLAUDE.md and README.md without replacing existing content.
 Update replaces only verified, unmodified managed files. Project settings,
 knowledge, follow-ups, plans, reports and agent-scripts are protected.
 Host instructions are untouched by update.
+Missing user-owned folders receive starter indexes; existing contents are kept.
 Does not log in or change MCP configuration. No files are deleted.
 `;
 

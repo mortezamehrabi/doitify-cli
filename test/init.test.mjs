@@ -455,11 +455,13 @@ test("update requires an existing workspace and creates no missing target", asyn
 
 test("update adopts matching legacy files but never guesses a differing legacy baseline", async (t) => {
   const target = await sandbox(t);
-  await initWorkspace({ target });
+  const unknownBundle = await nextBundle(t, { "DOITIFY.md": "Unknown older instructions\n" });
+  await initWorkspace({ target, bundleDirectory: unknownBundle });
   await rm(path.join(target, ".doitify/install-state.json"));
   const bundleDirectory = await nextBundle(t, { "DOITIFY.md": "Updated instructions\n" });
   await assert.rejects(updateWorkspace({ target, bundleDirectory }), /no verified installation baseline/);
   assert.equal(await lstat(path.join(target, ".doitify/install-state.json")).catch(() => null), null);
+  await writeFile(path.join(target, "DOITIFY.md"), await readFile(path.join(bundle, "DOITIFY.md")));
   await updateWorkspace({ target }); // Matching files can safely establish a baseline.
   await updateWorkspace({ target, bundleDirectory });
   assert.equal(await readFile(path.join(target, "DOITIFY.md"), "utf8"), "Updated instructions\n");
@@ -650,4 +652,114 @@ test("an older tracked hash cannot override new workflow-directory protection", 
     const relative = `.doitify/${directory}/README.md`;
     assert.deepEqual(await readFile(path.join(target, relative)), await readFile(path.join(bundle, relative)));
   }
+});
+
+test("update scaffolds absent user directories but preserves existing directories and missing indexes", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const existingIndex = path.join(target, ".doitify/project-knowledge/README.md");
+  await rm(existingIndex);
+  const personal = path.join(target, ".doitify/project-knowledge/decisions.md");
+  await writeFile(personal, "Private decisions\n");
+  for (const directory of protectedDirectories.slice(1)) {
+    await rm(path.join(target, ".doitify", directory), { recursive: true });
+  }
+  const preview = await updateWorkspace({ target, dryRun: true });
+  for (const directory of protectedDirectories.slice(1)) {
+    assert.equal(preview.actions.find((item) => item.path === `.doitify/${directory}/README.md`).action, "create");
+    assert.equal(await lstat(path.join(target, ".doitify", directory)).catch(() => null), null);
+  }
+  await updateWorkspace({ target });
+  for (const directory of protectedDirectories.slice(1)) {
+    assert.deepEqual(
+      await readFile(path.join(target, ".doitify", directory, "README.md")),
+      await readFile(path.join(bundle, ".doitify", directory, "README.md")),
+    );
+  }
+  assert.equal(await lstat(existingIndex).catch(() => null), null);
+  assert.equal(await readFile(personal, "utf8"), "Private decisions\n");
+  const repeated = await updateWorkspace({ target });
+  assert.ok(repeated.actions.every((item) => ["unchanged", "preserve"].includes(item.action)));
+});
+
+test("legacy release hashes migrate official files without install state, offline", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  await rm(path.join(target, ".doitify/install-state.json"));
+  const legacy = await readFile(path.join(root, "test/fixtures/legacy-connection.md"));
+  await writeFile(path.join(target, ".doitify/connection.md"), legacy);
+  await writeFile(path.join(target, ".doitify/project.md"), "Personal Board binding\n");
+  await rm(path.join(target, ".doitify/follow-ups"), { recursive: true });
+  const preview = await updateWorkspace({ target, dryRun: true });
+  assert.equal(preview.actions.find((item) => item.path === ".doitify/connection.md").action, "update");
+  assert.deepEqual(await readFile(path.join(target, ".doitify/connection.md")), legacy);
+  assert.equal(await lstat(path.join(target, ".doitify/install-state.json")).catch(() => null), null);
+  await updateWorkspace({ target });
+  assert.deepEqual(await readFile(path.join(target, ".doitify/connection.md")), await readFile(path.join(bundle, ".doitify/connection.md")));
+  assert.equal(await readFile(path.join(target, ".doitify/project.md"), "utf8"), "Personal Board binding\n");
+  assert.ok((await lstat(path.join(target, ".doitify/follow-ups/README.md"))).isFile());
+  assert.ok((await lstat(path.join(target, ".doitify/install-state.json"))).isFile());
+});
+
+test("legacy migration rejects edited content before creating absent folders or state", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  await rm(path.join(target, ".doitify/install-state.json"));
+  await rm(path.join(target, ".doitify/plans"), { recursive: true });
+  const modified = `${await readFile(path.join(root, "test/fixtures/legacy-connection.md"), "utf8")}\nPersonal change\n`;
+  await writeFile(path.join(target, ".doitify/connection.md"), modified);
+  await assert.rejects(updateWorkspace({ target }), /nothing was written/);
+  assert.equal(await readFile(path.join(target, ".doitify/connection.md"), "utf8"), modified);
+  assert.equal(await lstat(path.join(target, ".doitify/plans")).catch(() => null), null);
+  assert.equal(await lstat(path.join(target, ".doitify/install-state.json")).catch(() => null), null);
+});
+
+test("a recorded baseline is never bypassed using a different official release hash", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const legacy = await readFile(path.join(root, "test/fixtures/legacy-connection.md"));
+  await writeFile(path.join(target, ".doitify/connection.md"), legacy);
+  await assert.rejects(updateWorkspace({ target }), /locally modified/);
+  assert.deepEqual(await readFile(path.join(target, ".doitify/connection.md")), legacy);
+});
+
+test("legacy migration data contains only public managed hashes and matches the release fixture", async () => {
+  const data = JSON.parse(await readFile(path.join(root, "src/legacy-hashes.json"), "utf8"));
+  assert.equal(data.schemaVersion, 1);
+  assert.deepEqual(Object.keys(data.releases), ["0.1.0", "0.1.2"]);
+  for (const release of Object.values(data.releases)) {
+    for (const [relative, digest] of Object.entries(release)) {
+      assert.match(digest, /^[a-f0-9]{64}$/);
+      assert.ok(manifest.files.some((file) => file.path === relative));
+      assert.notEqual(relative, ".doitify/project.md");
+      assert.ok(!protectedDirectories.some((directory) => relative.startsWith(`.doitify/${directory}/`)));
+    }
+  }
+  const legacy = await readFile(path.join(root, "test/fixtures/legacy-connection.md"));
+  assert.equal(createHash("sha256").update(legacy).digest("hex"), data.releases["0.1.0"][".doitify/connection.md"]);
+});
+
+test("user-directory file collisions abort before any managed instruction changes", async (t) => {
+  const target = await sandbox(t);
+  await initWorkspace({ target });
+  const directory = path.join(target, ".doitify/plans");
+  await rm(directory, { recursive: true });
+  await writeFile(directory, "Not a directory\n");
+  const original = await readFile(path.join(target, "DOITIFY.md"));
+  const bundleDirectory = await nextBundle(t, { "DOITIFY.md": "New official instructions\n" });
+  await assert.rejects(updateWorkspace({ target, bundleDirectory }), /Expected a directory/);
+  assert.deepEqual(await readFile(path.join(target, "DOITIFY.md")), original);
+  assert.equal(await readFile(directory, "utf8"), "Not a directory\n");
+});
+
+test("update does not bootstrap user directories through symlinks", { skip: process.platform === "win32" }, async (t) => {
+  const base = await sandbox(t);
+  const target = path.join(base, "project");
+  await initWorkspace({ target });
+  const outside = path.join(base, "outside");
+  await mkdir(outside);
+  await rm(path.join(target, ".doitify/plans"), { recursive: true });
+  await symlink(outside, path.join(target, ".doitify/plans"));
+  await assert.rejects(updateWorkspace({ target }), /symbolic link/);
+  assert.deepEqual(await readdir(outside), []);
 });

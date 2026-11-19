@@ -4,7 +4,7 @@
   "entryPoints": ["bin/doitify.mjs", "src/init.mjs", "scripts/bundle-workspace.mjs"],
   "contract": {
     "primaryFiles": ["bin/doitify.mjs", "src/init.mjs"],
-    "safeToEdit": ["scripts/", "test/", "README.md", "CONTRIBUTING.md", "package.json"],
+    "safeToEdit": ["src/legacy-hashes.json", "scripts/", "test/", "README.md", "CONTRIBUTING.md", "package.json"],
     "neverTouch": ["../doitify-agent-workspace/.doitify/project.md"]
   },
   "dependencies": ["node>=22", "existing-doitify-agent-workspace-files"]

@@ -12,6 +12,7 @@ const hash = (data) => createHash("sha256").update(data).digest("hex");
 const maxFileBytes = 1024 * 1024;
 const statePath = ".doitify/install-state.json";
 const packageVersion = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
+const legacyReleases = JSON.parse(await readFile(new URL("./legacy-hashes.json", import.meta.url), "utf8")).releases;
 // Add future agent/user-owned paths here. A trailing slash protects the whole tree.
 const userDataDirectories = [
   ".doitify/project-knowledge/",
@@ -24,6 +25,13 @@ const userDataPaths = [".doitify/project.md", ...userDataDirectories];
 const isUserData = (relative) => userDataPaths.some((entry) =>
   entry.endsWith("/") ? relative.startsWith(entry) : relative === entry);
 const writableActions = new Set(["create", "append", "update"]);
+
+function matchesInstalledContent(relative, content, hashes) {
+  const digest = hash(content);
+  // A recorded baseline wins: never reinterpret a local edit as a legacy install.
+  if (Object.hasOwn(hashes, relative)) return digest === hashes[relative];
+  return Object.values(legacyReleases).some((release) => release[relative] === digest);
+}
 
 async function statOrNull(file) {
   try {
@@ -148,10 +156,19 @@ async function planWorkspace({ target = process.cwd(), bundleDirectory = default
   // Track only this release's managed files; retired files remain untouched.
   const hashes = {};
   for (const file of files) {
-    // Update never reads or recreates user data, even if a starter is missing.
+    // Bootstrap absent user-owned directories, never replace existing contents.
     if (update && isUserData(file.path)) {
-      actions.push({ action: "preserve", path: file.path });
-      continue;
+      const directory = userDataDirectories.find((entry) => file.path === `${entry}README.md`);
+      const directoryStat = directory
+        ? await statOrNull(await safePath(path.join(target, directory)))
+        : null;
+      if (directoryStat && !directoryStat.isDirectory()) {
+        throw new Error(`Expected a directory: ${path.join(target, directory)}`);
+      }
+      if (!directory || directoryStat) {
+        actions.push({ action: "preserve", path: file.path });
+        continue;
+      }
     }
     const destination = path.join(target, file.path);
     const previous = await existingFile(destination);
@@ -159,8 +176,7 @@ async function planWorkspace({ target = process.cwd(), bundleDirectory = default
     if (previous) {
       if (previous.content.equals(file.content)) action = "unchanged";
       else if (isUserData(file.path)) action = "preserve";
-      else if (update && Object.hasOwn(state.hashes, file.path) &&
-          hash(previous.content) === state.hashes[file.path]) action = "update";
+      else if (update && matchesInstalledContent(file.path, previous.content, state.hashes)) action = "update";
       else {
         action = "conflict";
         conflicts.push(file.path);

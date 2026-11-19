@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "releases": {
+    "0.1.0": {
+      ".doitify/connection.md": "03ec2e66c6839d2df986c64a534caf9d4699142d51de8fc402e2579f87072647",
+      ".doitify/policies/core.md": "f02250674153fa5fc696c8c3f65a93299fba7f6e6c3aa80159974ab711f18e60",
+      ".doitify/policies/lifecycle.md": "0449ffd82e78dbdf2861ef79904f254827350aefca0a371762a9b55497cdc4ef",
+      ".doitify/skills/checklist-subtask-management/SKILL.md": "74a6a22c4b1166981f0318075eb0d4486d3a0425a259913ebf0434aea1bd28c1",
+      ".doitify/skills/daily-work-report/SKILL.md": "1c48572024a1ecef3ba226f8be0f80c7b7e0507cbb1d40388ee641c4fdbcc379",
+      ".doitify/skills/documentation-management/SKILL.md": "a546b161137f59f6bab9cf87e60229cf74d2c11ed5e4067b386e156936c527e4",
+      ".doitify/skills/execution-recovery/SKILL.md": "864a7661f2754a66aa3fae7e45cf8ea699d337cca384ff6e6140ba1563998af5",
+      ".doitify/skills/index.md": "76f61d57ec9d20a294c239a0f031417b573ba2b7f8ce64cd2a75b370f1f1167b",
+      ".doitify/skills/mcp-capability-discovery/SKILL.md": "05e9b93284afdb9fb44635a50f1dbe9b94fb60224038b73493809701ea5b60a7",
+      ".doitify/skills/review-handoff/SKILL.md": "c286e4d0ab0cbd627646a5c43940cd7c49a1c05c71cd78633bc7b565399bc3b3",
+      ".doitify/skills/task-communication/SKILL.md": "f9b914d241d52b5e5a013208e8c913dadc9e90c74d8348120796866c470cae01",
+      ".doitify/skills/task-execution/SKILL.md": "649a7247d281a256c242db3dae0d33df2377eefd1c3bcabfd1ffe65ba1ea6321",
+      ".doitify/skills/task-management/SKILL.md": "196115e8529e5ad68b6a2e874d4912f626e7e14d4913088546f249eafae48fc1",
+      ".doitify/skills/virtual-office-presence/SKILL.md": "b64b000ea15d9e15d0e8095a791899e2a7e53c292dd7ae627f1a640a3261705d",
+      ".doitify/skills/workspace-initialization/SKILL.md": "940aa0a15b001aad1e90a41eaff3fc1ff8faeb0496d4609bfbfed4ef8649b5f7",
+      ".doitify/templates/activity.md": "b0773a1d8477858ada2aa17148e1eab0a077e9f755dd0fbeac8aea27f7165ac0",
+      ".doitify/templates/handoff.md": "8351c1c1b7e953f572fd4daa8fb56bc698a927f50a730c41409650a121f5a396",
+      ".doitify/workflows/ask-wait-resume.md": "5894a3feccd7b9a4431ca6481fba1cf8bdad203dae1b8da0c17a225aae74eb14",
+      ".doitify/workflows/daily-report.md": "9316f4164d350ee55f5167bee5026430b0aee911a3c367c206be22a55bb35f0e",
+      ".doitify/workflows/interactive-task.md": "f59ef63e90472f9f457eb966ce86639864f398e5ffa349ae3989775968b8153f",
+      ".doitify/workflows/recover-or-cancel.md": "45c4b689c559a7f51de1fbddcd247d2f3e1ec11ab6c203780ac6710edae9bd69",
+      "DOITIFY.md": "1f424c397780759afa10e2a5bba4912150f783755bae44f6d4ee8dd20b592035"
+    },
+    "0.1.2": {
+      ".doitify/connection.md": "06ac56fd0356d6c32b096b4587b884eb0b8d25df972c0deb7b314422109368fc",
+      ".doitify/policies/core.md": "47b973647c7700b3771fcc30f49a2381390cb4c6257706dadab3ce3a63f5bb3b",
+      ".doitify/policies/lifecycle.md": "bc2e920284935817f89373221eeb9b6692d4c3b13188f2d3c76bd8034461a907",
+      ".doitify/skills/checklist-subtask-management/SKILL.md": "74a6a22c4b1166981f0318075eb0d4486d3a0425a259913ebf0434aea1bd28c1",
+      ".doitify/skills/daily-work-report/SKILL.md": "2b15eba30a8bb83fcf24be9c7219a14cedc7c1ed3619918dbeb6d37e1fa90d0c",
+      ".doitify/skills/documentation-management/SKILL.md": "d271dc6bd5ef59cdb3b98a4eb2cad9393e4821e2d2229d45127689cee24fd235",
+      ".doitify/skills/execution-recovery/SKILL.md": "2735a2fa8c80358fcab358deba0badedd4c9a40914352224b9ff527385d08b13",
+      ".doitify/skills/index.md": "80429089086af8590595b540a598b78a1f9194acf68120b1b0fde6dce5ac3e9f",
+      ".doitify/skills/mcp-capability-discovery/SKILL.md": "4ec3bd660c1897f0a4b910d2d4c1bec1c9aa33eb4d1137ab152ea7da2b1d78a7",
+      ".doitify/skills/review-handoff/SKILL.md": "c286e4d0ab0cbd627646a5c43940cd7c49a1c05c71cd78633bc7b565399bc3b3",
+      ".doitify/skills/task-communication/SKILL.md": "5ba1c0f4706c24843abd155b08918ab0a9d01909dbedb46ad2364cf32edf2031",
+      ".doitify/skills/task-execution/SKILL.md": "649a7247d281a256c242db3dae0d33df2377eefd1c3bcabfd1ffe65ba1ea6321",
+      ".doitify/skills/task-management/SKILL.md": "c428e33618e80c41bab20e7e9e6ba7be45741a666fedc20a707be4e2099b1ac9",
+      ".doitify/skills/virtual-office-presence/SKILL.md": "b64b000ea15d9e15d0e8095a791899e2a7e53c292dd7ae627f1a640a3261705d",
+      ".doitify/skills/workspace-initialization/SKILL.md": "15274496c4463739991d4bdf084d4e2ac1d3e3e1b64f0f3c06408f29953e314e",
+      ".doitify/templates/activity.md": "b0773a1d8477858ada2aa17148e1eab0a077e9f755dd0fbeac8aea27f7165ac0",
+      ".doitify/templates/handoff.md": "8351c1c1b7e953f572fd4daa8fb56bc698a927f50a730c41409650a121f5a396",
+      ".doitify/workflows/ask-wait-resume.md": "dfad5e5e1feee206d1c52ac5451fe52aa8a5eedbabc70e0954248f8655cb739d",
+      ".doitify/workflows/daily-report.md": "eb481e55ffe8089f3910065a097a9ffa1ca535da0b6e7f4150a08c0b00c76ce0",
+      ".doitify/workflows/interactive-task.md": "9741a601ddd8b7768cbfe60ff3fba0d61a38523f61ad16694636fbd1ef8ccbc0",
+      ".doitify/workflows/recover-or-cancel.md": "45c4b689c559a7f51de1fbddcd247d2f3e1ec11ab6c203780ac6710edae9bd69",
+      "DOITIFY.md": "e0789ed8804f13f0a9c42410b680e8076283a0d6d3e42b8f7b1a0089d1912236"
+    }
+  }
+}
