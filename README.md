@@ -83,6 +83,26 @@ server permissions and the tools actually available remain authoritative.
 The instructions do not grant access or guarantee that every client supports
 every action.
 
+### Optional automatic checks
+
+On setup and after workspace updates, the agent reviews automatic monitoring:
+reuse a verified existing job, respect a saved decline, or offer low-cost checks
+normally every 10 minutes. With one-time authorization, it can use a supported
+native scheduler or OS timer/cron to invoke the actual agent client.
+
+Checks cover new tasks, relevant messages, waiting answers, task changes and QC
+feedback—even after a review handoff leaves the assigned-task list. Clear,
+authorized rework can continue through a verified work-client/model path; otherwise
+the agent saves the next action and explains the execution blocker.
+
+Scheduling needs real noninteractive MCP/model support, spending/run limits and
+single-flight protection. The installer does not schedule anything or start an
+agent. Detailed behavior lives in the updatable `automatic-monitoring` skill and
+`monitoring-prompt.md`, not in a hard-coded cron prompt.
+After a restart, start/continue checks live MCP and job health first, reuses
+working setup and resumes unfinished work. Missing-job recovery stays within
+saved authorization; it does not recreate healthy jobs or reset project data.
+
 ## Your files stay yours
 
 ```text

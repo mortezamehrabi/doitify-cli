@@ -17,6 +17,7 @@ knowledge, follow-ups, plans, reports and agent-scripts are protected.
 Host instructions are untouched by update.
 Missing user-owned folders receive starter indexes; existing contents are kept.
 Does not log in or change MCP configuration. No files are deleted.
+Init/update print agent guidance for optional automatic monitoring; they do not schedule jobs.
 `;
 
 try {
@@ -47,8 +48,11 @@ try {
     console.log(`${result.dryRun ? "Preview" : updating ? "Updated" : "Initialized"}: ${result.target}`);
     for (const item of result.actions) console.log(`  ${item.action.padEnd(9)} ${item.path}`);
     if (result.dryRun) console.log("Dry run: no files were written.");
-    else if (updating) console.log("\nInstructions updated. Your settings, knowledge, follow-ups, plans, reports and agent scripts were preserved.");
-    else console.log('\nNext: ask your agent to "Read DOITIFY.md and initialize this project for Doitify."');
+    else {
+      if (updating) console.log("\nInstructions updated. Your settings, knowledge, follow-ups, plans, reports and agent scripts were preserved.");
+      console.log(`\nNext: ask your agent to "Read DOITIFY.md, ${updating ? "review the updated workspace" : "initialize this project"}, and follow .doitify/skills/automatic-monitoring/SKILL.md to review an existing schedule or offer periodic checks."`);
+      console.log("Scheduling is optional: your agent verifies client/model support and asks for one-time authorization. This command did not create or change scheduled jobs.");
+    }
   }
 } catch (error) {
   console.error(`doitify: ${error.message}`);

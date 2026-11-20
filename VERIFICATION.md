@@ -2,13 +2,15 @@
 
 The current source prepares `0.1.3`: it initializes absent user-owned folders on
 update and recognizes verified official `0.1.0`/`0.1.2` instruction hashes for
-offline legacy migration. It has not been published as part of this task.
+offline legacy migration. The current source also ships automatic-monitoring
+instructions and post-init/update guidance, not an installed scheduler. These
+changes have not been published as part of this task.
 
 ## Automated tests
 
 ```text
 npm test
-52 passed; 0 failed; 0 skipped
+53 passed; 0 failed; 0 skipped
 
 npm run check
 All four JavaScript modules passed Node syntax checks.
@@ -38,10 +40,13 @@ tarball's workspace bytes and manifest. No network is used by these tests.
 A real read-only preview against the reported legacy TestProject succeeded:
 it planned instruction upgrades, five missing starter folders and installation
 metadata while preserving project settings. No project files were written.
+The CLI monitoring test checks init/update output, bundled skill/prompt presence,
+dry-run behavior, and that user-owned helper/follow-up folders receive no job files.
+No actual scheduler, unattended login, model call or QC workflow is exercised.
 
 ## Package acceptance
 
-The current `npm pack --dry-run` includes 34 allowlisted files, including 28
+The current `npm pack --dry-run` includes 36 allowlisted files, including 30
 operational instruction files from the canonical workspace. Project-specific
 knowledge and the local-only publishing script are excluded.
 The additional source file is `src/legacy-hashes.json`, containing only public

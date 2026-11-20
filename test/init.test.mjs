@@ -535,6 +535,25 @@ test("CLI update accepts help/target/dry-run and rejects force", async (t) => {
   assert.equal(spawnSync(process.execPath, [binary, "update", "--force"], { cwd: target }).status, 1);
 });
 
+test("init and update ship monitoring guidance without enabling or creating a scheduler", async (t) => {
+  const target = await sandbox(t);
+  for (const command of ["init", "update"]) {
+    const output = execFileSync(process.execPath, [binary, command], { cwd: target, encoding: "utf8" });
+    assert.match(output, /\.doitify\/skills\/automatic-monitoring\/SKILL\.md/);
+    assert.match(output, /one-time authorization/);
+    assert.match(output, /did not create or change scheduled jobs/);
+    const skill = await readFile(path.join(target, ".doitify/skills/automatic-monitoring/SKILL.md"), "utf8");
+    const prompt = await readFile(path.join(target, ".doitify/templates/monitoring-prompt.md"), "utf8");
+    assert.match(skill, /10 minutes/);
+    assert.match(prompt, /QC rejection/);
+    assert.deepEqual(await readdir(path.join(target, ".doitify/agent-scripts")), ["README.md"]);
+    assert.deepEqual(await readdir(path.join(target, ".doitify/follow-ups")), ["README.md"]);
+  }
+  const preview = execFileSync(process.execPath, [binary, "update", "--dry-run"], { cwd: target, encoding: "utf8" });
+  assert.match(preview, /no files were written/);
+  assert.doesNotMatch(preview, /Next: ask your agent/);
+});
+
 test("real CLI updates an older verified installation and leaves user knowledge intact", async (t) => {
   const target = await sandbox(t);
   const oldBundle = await nextBundle(t, { "DOITIFY.md": "Older official instructions\n" });
